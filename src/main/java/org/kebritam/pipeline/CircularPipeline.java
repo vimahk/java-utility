@@ -69,10 +69,10 @@ public class CircularPipeline<T> implements Pipeline<T> {
             throw new RuntimeException(exception);
         }
 
-        if (terminated)
-            this.currentState = PipelineState.NOT_RUNNING;
-        else
+        if (!terminated)
             logger.warning("Terminating Pipeline timed out");
+
+        this.currentState = PipelineState.NOT_RUNNING;
     }
 
     @Override
