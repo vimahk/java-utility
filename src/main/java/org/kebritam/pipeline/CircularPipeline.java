@@ -23,6 +23,7 @@ public class CircularPipeline<T> implements Pipeline<T> {
     private ExecutorService executor;
     private final List<UnaryOperator<T>> pipes;
     private Supplier<T> initializer;
+    private Future<?> runLoopFuture;
 
     public CircularPipeline(Supplier<T> initializer) {
         this.currentState = PipelineState.NOT_RUNNING;
@@ -49,7 +50,13 @@ public class CircularPipeline<T> implements Pipeline<T> {
     public void start() {
         this.executor = Executors.newVirtualThreadPerTaskExecutor();
         this.currentState = PipelineState.RUNNING;
-        this.executor.execute(this::runLoop);
+        this.runLoopFuture = this.executor.submit(() -> {
+            try {
+                runLoop();
+            } catch (ExecutionException | InterruptedException e) {
+                throw new RuntimeException(e);
+            }
+        });
     }
 
     @Override
@@ -60,19 +67,20 @@ public class CircularPipeline<T> implements Pipeline<T> {
 
         this.executor.shutdown();
 
-        boolean terminated;
+        boolean terminated = false;
         try {
-            terminated = this.executor.awaitTermination(5, TimeUnit.MINUTES);
-        } catch (InterruptedException exception) {
-            logger.severe("Termination got interrupted");
             this.currentState = PipelineState.NOT_RUNNING;
-            throw new RuntimeException(exception);
+            this.runLoopFuture.get();
+            terminated = this.executor.awaitTermination(5, TimeUnit.MINUTES);
+        } catch (InterruptedException e) {
+            logger.severe("Termination got interrupted");
+        } catch (ExecutionException e) {
+            logger.severe("Exception thrown in running run loop. Message: " + e.getMessage());
+            throw new RuntimeException(e);
         }
 
         if (!terminated)
             logger.warning("Terminating Pipeline timed out");
-
-        this.currentState = PipelineState.NOT_RUNNING;
     }
 
     @Override
@@ -80,7 +88,7 @@ public class CircularPipeline<T> implements Pipeline<T> {
         return this.currentState.equals(PipelineState.RUNNING);
     }
 
-    private void runLoop() {
+    private void runLoop() throws ExecutionException, InterruptedException {
         List<T> elements = new ArrayList<>(Collections.nCopies(this.pipes.size() + 1, null));
         List<Future<T>> futures = new ArrayList<>(this.pipes.size() + 1);
         while (this.currentState == PipelineState.RUNNING) {
@@ -99,17 +107,7 @@ public class CircularPipeline<T> implements Pipeline<T> {
 
             List<T> tempElements = new ArrayList<>(futures.size());
             for (var future : futures) {
-                try {
-                    tempElements.add(future.get());
-                } catch (InterruptedException e) {
-                    logger.severe("Running pipe interrupted. Message: " + e.getMessage());
-                    this.currentState = PipelineState.NOT_RUNNING;
-                    return;
-                } catch (ExecutionException e) {
-                    logger.severe("Exception thrown in pipe. Message: " + e.getMessage());
-                    this.currentState = PipelineState.NOT_RUNNING;
-                    return;
-                }
+                tempElements.add(future.get());
             }
 
             for (int i = 0; i < tempElements.size(); i++) {
