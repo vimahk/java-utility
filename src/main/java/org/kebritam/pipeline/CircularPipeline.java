@@ -19,7 +19,7 @@ public class CircularPipeline<T> implements Pipeline<T> {
         STOPPING,
     }
 
-    private PipelineState currentState;
+    private volatile PipelineState currentState;
     private ExecutorService executor;
     private final List<UnaryOperator<T>> pipes;
     private Supplier<T> initializer;
