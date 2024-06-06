@@ -1,4 +1,4 @@
-package org.kebritam;
+package io.github.kebritam;
 
 import org.junit.jupiter.api.Test;
 

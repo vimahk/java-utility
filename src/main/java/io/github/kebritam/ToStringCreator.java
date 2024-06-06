@@ -1,4 +1,4 @@
-package org.kebritam;
+package io.github.kebritam;
 
 public class ToStringCreator {
 

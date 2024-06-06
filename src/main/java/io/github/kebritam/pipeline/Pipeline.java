@@ -1,4 +1,4 @@
-package org.kebritam.pipeline;
+package io.github.kebritam.pipeline;
 
 import java.util.function.Supplier;
 import java.util.function.UnaryOperator;

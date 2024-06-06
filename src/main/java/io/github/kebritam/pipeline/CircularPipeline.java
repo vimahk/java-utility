@@ -1,4 +1,4 @@
-package org.kebritam.pipeline;
+package io.github.kebritam.pipeline;
 
 import java.util.ArrayList;
 import java.util.Collections;
