@@ -48,7 +48,7 @@ class ToStringCreatorTest {
                 })
                 .create();
 
-        assertEquals("[string:Hello there!, class-object:class org.kebritam.ToStringCreator, " +
+        assertEquals("[string:Hello there!, class-object:class io.github.kebritam.ToStringCreator, " +
                         "userClass:Object{package='java.lang', fieldsCount=0}]", result);
     }
 }
