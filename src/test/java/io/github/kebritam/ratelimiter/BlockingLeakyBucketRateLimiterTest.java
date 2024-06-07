@@ -3,15 +3,15 @@ package io.github.kebritam.ratelimiter;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
+import java.time.Duration;
+import java.util.Random;
+import java.util.concurrent.atomic.AtomicInteger;
 
 class BlockingLeakyBucketRateLimiterTest {
 
     @Test
-    void shouldAllowOnly30CallsPerSecond() {
-        RateLimiter limiter = new BlockingLeakyBucketRateLimiter(100);
+    void shouldAllowOnly100CallsPerSecond() {
+        RateLimiter limiter = new BlockingLeakyBucketRateLimiter(100, Duration.ofSeconds(1));
 
         // first two call will be immediate
         long start = System.currentTimeMillis();
@@ -26,43 +26,67 @@ class BlockingLeakyBucketRateLimiterTest {
             ++callCount;
         }
 
-        Assertions.assertEquals(200, callCount);
+        Assertions.assertEquals(2 * 100 /* it's two seconds */, callCount);
     }
 
     @Test
-    void shouldAllowOnly10CallsPerSecondConcurrently() throws InterruptedException, ExecutionException {
-        RateLimiter limiter = new BlockingLeakyBucketRateLimiter(100);
+    void shouldHaveSameResultsOverallSameRPS() throws InterruptedException {
+        Random random = new Random(System.currentTimeMillis());
+        int randomRate = random.nextInt(1, 200);
+        int randomPer = random.nextInt(50, 1000); // Millis
+        RateLimiter limiter = new BlockingLeakyBucketRateLimiter(randomRate, Duration.ofMillis(randomPer));
 
-        int total = 0;
-        try (ExecutorService executor = Executors.newVirtualThreadPerTaskExecutor()) {
-            var t1 = executor.submit(() -> {
-                long start = System.currentTimeMillis();
-                int callCount = 0;
-                while (System.currentTimeMillis() - start < 2_000) {
-                    limiter.Take();
-                    ++callCount;
-                }
-                return callCount;
-            });
-            var t2 = executor.submit(() -> {
-                long start = System.currentTimeMillis();
-                int callCount = 0;
-                while (System.currentTimeMillis() - start < 2_000) {
-                    limiter.Take();
-                    ++callCount;
-                }
-                return callCount;
-            });
-            total += t1.get();
-            total += t2.get();
-        }
+        AtomicInteger callCount = new AtomicInteger();
+        var t = Thread.startVirtualThread(() -> {
+            // first two call will be immediate
+            long start = System.currentTimeMillis();
+            while (System.currentTimeMillis() - start < 500) {
+                limiter.Take();
+            }
 
-        Assertions.assertTrue(total > 200 && total < 205);
+            start = System.currentTimeMillis();
+            while (System.currentTimeMillis() - start < 2_000) {
+                limiter.Take();
+                callCount.incrementAndGet();
+            }
+        });
+        t.join();
+
+        Assertions.assertEquals(
+                2 * (randomRate * 1000. / randomPer) /* it's two seconds */,
+                callCount.get(),
+                1.);
+    }
+
+    @Test
+    void shouldAllowOnly10CallsPerSecondConcurrently() throws InterruptedException {
+        RateLimiter limiter = new BlockingLeakyBucketRateLimiter(100, Duration.ofSeconds(1));
+
+        AtomicInteger total = new AtomicInteger(0);
+        var t1 = Thread.startVirtualThread(() -> {
+            long start = System.currentTimeMillis();
+            while (System.currentTimeMillis() - start < 2_000) {
+                limiter.Take();
+                total.incrementAndGet();
+            }
+        });
+        var t2 = Thread.startVirtualThread(() -> {
+            long start = System.currentTimeMillis();
+            while (System.currentTimeMillis() - start < 2_000) {
+                limiter.Take();
+                total.incrementAndGet();
+            }
+        });
+
+        t1.join();
+        t2.join();
+
+        Assertions.assertTrue(total.get() > 200 && total.get() < 205, "total: " + total);
     }
 
     @Test
     void shouldBlockForAbout100MillisForEachCall() {
-        RateLimiter limiter = new BlockingLeakyBucketRateLimiter(10);
+        RateLimiter limiter = new BlockingLeakyBucketRateLimiter(10, Duration.ofSeconds(1));
 
         for (int i = 0 ; i < 50 ; ++i) {
             long start = System.nanoTime();

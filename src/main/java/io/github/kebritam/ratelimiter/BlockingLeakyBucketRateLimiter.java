@@ -8,8 +8,8 @@ public class BlockingLeakyBucketRateLimiter implements RateLimiter {
     long perRequest;
     AtomicLong nextAccessTime;
 
-    public BlockingLeakyBucketRateLimiter(int rate) {
-        this.perRequest = 1_000_000_000 / rate;
+    public BlockingLeakyBucketRateLimiter(int rate, Duration per) {
+        this.perRequest = per.toNanos() / rate;
         this.nextAccessTime = new AtomicLong(0);
     }
 
