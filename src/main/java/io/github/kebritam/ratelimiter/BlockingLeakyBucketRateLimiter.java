@@ -17,7 +17,6 @@ public class BlockingLeakyBucketRateLimiter implements RateLimiter {
     public void Take() {
         long newNextAccessTime;
         long currentTime;
-        long tempNextAccessTime;
 
         while (true) {
             currentTime = System.nanoTime();
@@ -29,13 +28,12 @@ public class BlockingLeakyBucketRateLimiter implements RateLimiter {
                 newNextAccessTime = currentNextAccessTime + perRequest;
             }
 
-            tempNextAccessTime = this.nextAccessTime.get();
             if (this.nextAccessTime.compareAndSet(currentNextAccessTime, newNextAccessTime)) {
                 break;
             }
         }
 
-        long sleepDuration = tempNextAccessTime - currentTime;
+        long sleepDuration = newNextAccessTime - currentTime;
         if (sleepDuration > 0) {
             try {
                 Thread.sleep(Duration.ofNanos(sleepDuration));

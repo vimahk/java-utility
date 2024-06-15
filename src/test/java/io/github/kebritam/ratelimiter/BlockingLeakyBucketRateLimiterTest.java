@@ -1,15 +1,17 @@
 package io.github.kebritam.ratelimiter;
 
 import org.junit.jupiter.api.Assertions;
-import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.RepeatedTest;
 
 import java.time.Duration;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Random;
 import java.util.concurrent.atomic.AtomicInteger;
 
 class BlockingLeakyBucketRateLimiterTest {
 
-    @Test
+    @RepeatedTest(10)
     void shouldAllowOnly100CallsPerSecond() {
         RateLimiter limiter = new BlockingLeakyBucketRateLimiter(100, Duration.ofSeconds(1));
 
@@ -29,7 +31,7 @@ class BlockingLeakyBucketRateLimiterTest {
         Assertions.assertEquals(2 * 100 /* it's two seconds */, callCount);
     }
 
-    @Test
+    @RepeatedTest(10)
     void shouldHaveSameResultsOverallSameRPS() throws InterruptedException {
         Random random = new Random(System.currentTimeMillis());
         int randomRate = random.nextInt(1, 200);
@@ -58,7 +60,7 @@ class BlockingLeakyBucketRateLimiterTest {
                 1.);
     }
 
-    @Test
+    @RepeatedTest(10)
     void shouldAllowOnly10CallsPerSecondConcurrently() throws InterruptedException {
         RateLimiter limiter = new BlockingLeakyBucketRateLimiter(100, Duration.ofSeconds(1));
 
@@ -84,19 +86,27 @@ class BlockingLeakyBucketRateLimiterTest {
         Assertions.assertTrue(total.get() > 200 && total.get() < 205, "total: " + total);
     }
 
-    @Test
+    @RepeatedTest(10)
     void shouldBlockForAbout100MillisForEachCall() {
         RateLimiter limiter = new BlockingLeakyBucketRateLimiter(10, Duration.ofSeconds(1));
 
+        // first few calls will be immediate
+        long start = System.currentTimeMillis();
+        while (System.currentTimeMillis() - start < 500) {
+            limiter.Take();
+        }
+
+        List<Double> results = new ArrayList<>(50);
         for (int i = 0 ; i < 50 ; ++i) {
-            long start = System.nanoTime();
+            start = System.nanoTime();
             limiter.Take();
             long end = System.nanoTime();
-            if (i < 2) {
-                Assertions.assertEquals(0, (end - start) / 1_000_000., 10., "index: " + i);
-            } else if (i > 3) {
-                Assertions.assertEquals(100, (end - start) / 1_000_000., 10., "index: " + i);
-            }
+
+            results.add((end - start) / 1_000_000.);
+        }
+
+        for (var res : results) {
+            Assertions.assertEquals(100, res, 1.);
         }
     }
 }
