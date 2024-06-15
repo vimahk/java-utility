@@ -6,34 +6,34 @@ import java.util.concurrent.atomic.AtomicLong;
 public class BlockingLeakyBucketRateLimiter implements RateLimiter {
 
     long perRequest;
-    AtomicLong nextAccessTime;
+    AtomicLong prevAccessTime;
 
     public BlockingLeakyBucketRateLimiter(int rate, Duration per) {
         this.perRequest = per.toNanos() / rate;
-        this.nextAccessTime = new AtomicLong(0);
+        this.prevAccessTime = new AtomicLong(0);
     }
 
     @Override
     public void Take() {
-        long newNextAccessTime;
+        long nextAccessTime;
         long currentTime;
 
         while (true) {
             currentTime = System.nanoTime();
-            long currentNextAccessTime = this.nextAccessTime.get();
+            long prevAccessTime = this.prevAccessTime.get();
 
-            if (currentTime - currentNextAccessTime > perRequest) {
-                newNextAccessTime = currentTime;
+            if (currentTime - prevAccessTime > perRequest) {
+                nextAccessTime = currentTime;
             } else {
-                newNextAccessTime = currentNextAccessTime + perRequest;
+                nextAccessTime = prevAccessTime + perRequest;
             }
 
-            if (this.nextAccessTime.compareAndSet(currentNextAccessTime, newNextAccessTime)) {
+            if (this.prevAccessTime.compareAndSet(prevAccessTime, nextAccessTime)) {
                 break;
             }
         }
 
-        long sleepDuration = newNextAccessTime - currentTime;
+        long sleepDuration = nextAccessTime - currentTime;
         if (sleepDuration > 0) {
             try {
                 Thread.sleep(Duration.ofNanos(sleepDuration));
