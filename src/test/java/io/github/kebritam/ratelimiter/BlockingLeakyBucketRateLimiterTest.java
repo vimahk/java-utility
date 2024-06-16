@@ -12,6 +12,22 @@ import java.util.concurrent.atomic.AtomicInteger;
 class BlockingLeakyBucketRateLimiterTest {
 
     @RepeatedTest(10)
+    void timeBetweenCallsShouldBe10Millis() {
+        RateLimiter limiter = new BlockingLeakyBucketRateLimiter(100, Duration.ofMillis(500));
+
+        List<Long> times = new ArrayList<>(200);
+        long start = System.currentTimeMillis();
+        while (System.currentTimeMillis() - start < 2_000) {
+            limiter.Take();
+            times.add(System.nanoTime());
+        }
+
+        for (int i = 0; i < times.size() - 1; i++) {
+            Assertions.assertEquals(5., (times.get(i + 1) - times.get(i)) / 1_000_000., .6);
+        }
+    }
+
+    @RepeatedTest(10)
     void shouldAllowOnly100CallsPerSecond() {
         RateLimiter limiter = new BlockingLeakyBucketRateLimiter(100, Duration.ofSeconds(1));
 
