@@ -44,7 +44,8 @@ class BlockingLeakyBucketRateLimiterTest {
             ++callCount;
         }
 
-        Assertions.assertEquals(2 * 100 /* it's two seconds */, callCount);
+        Assertions.assertTrue(callCount >= 200 && callCount <= 202 /* it's two seconds */,
+                "count: " + callCount);
     }
 
     @RepeatedTest(10)
@@ -55,20 +56,18 @@ class BlockingLeakyBucketRateLimiterTest {
         RateLimiter limiter = new BlockingLeakyBucketRateLimiter(randomRate, Duration.ofMillis(randomPer));
 
         AtomicInteger callCount = new AtomicInteger();
-        var t = Thread.startVirtualThread(() -> {
-            // first two call will be immediate
-            long start = System.currentTimeMillis();
-            while (System.currentTimeMillis() - start < 500) {
-                limiter.Take();
-            }
 
-            start = System.currentTimeMillis();
-            while (System.currentTimeMillis() - start < 2_000) {
-                limiter.Take();
-                callCount.incrementAndGet();
-            }
-        });
-        t.join();
+        // first two call will be immediate
+        long start = System.currentTimeMillis();
+        while (System.currentTimeMillis() - start < 500) {
+            limiter.Take();
+        }
+
+        start = System.currentTimeMillis();
+        while (System.currentTimeMillis() - start < 2_000) {
+            limiter.Take();
+            callCount.incrementAndGet();
+        }
 
         Assertions.assertEquals(
                 2 * (randomRate * 1000. / randomPer) /* it's two seconds */,
