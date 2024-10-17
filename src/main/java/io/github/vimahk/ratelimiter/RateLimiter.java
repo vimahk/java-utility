@@ -1,4 +1,4 @@
-package io.github.kebritam.ratelimiter;
+package io.github.vimahk.ratelimiter;
 
 public interface RateLimiter {
     void Take();

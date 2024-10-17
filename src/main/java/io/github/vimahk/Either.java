@@ -1,4 +1,4 @@
-package io.github.kebritam;
+package io.github.vimahk;
 
 import java.util.function.Consumer;
 import java.util.function.Function;

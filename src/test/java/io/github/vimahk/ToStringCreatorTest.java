@@ -1,4 +1,4 @@
-package io.github.kebritam;
+package io.github.vimahk;
 
 import org.junit.jupiter.api.Test;
 
@@ -48,7 +48,7 @@ class ToStringCreatorTest {
                 })
                 .create();
 
-        assertEquals("[string:Hello there!, class-object:class io.github.kebritam.ToStringCreator, " +
+        assertEquals("[string:Hello there!, class-object:class io.github.vimahk.ToStringCreator, " +
                         "userClass:Object{package='java.lang', fieldsCount=0}]", result);
     }
 }

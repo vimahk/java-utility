@@ -1,4 +1,4 @@
-package io.github.kebritam.ratelimiter;
+package io.github.vimahk.ratelimiter;
 
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.RepeatedTest;
